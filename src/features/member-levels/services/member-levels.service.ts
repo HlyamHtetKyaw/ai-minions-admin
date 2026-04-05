@@ -22,7 +22,10 @@ export const memberLevelsService = {
     pageAndFilter?: PageAndFilterDTO<MemberLevelFilter>
   ): Promise<PaginationDTO<MemberLevel>> {
     const raw = await apiClient.get<ApiResponse<MemberLevel[]>>(BASE_URL)
-    let list = Array.isArray(raw.data) ? raw.data : []
+    let list = (Array.isArray(raw.data) ? raw.data : []).map((l) => ({
+      ...l,
+      isTopup: l.isTopup ?? false,
+    }))
 
     const nameQ = pageAndFilter?.filter?.name?.trim().toLowerCase()
     if (nameQ) {
@@ -45,7 +48,8 @@ export const memberLevelsService = {
 
   async getById(id: number): Promise<MemberLevel> {
     const raw = await apiClient.get<ApiResponse<MemberLevel>>(`${BASE_URL}/${id}`)
-    return raw.data
+    const l = raw.data
+    return { ...l, isTopup: l.isTopup ?? false }
   },
 
   async create(data: MemberLevelRequest): Promise<MemberLevel> {

@@ -7,6 +7,11 @@ export interface LoginRequest {
   password: string
 }
 
+/** Matches `LoginWithCodeRequest` in ai-minions-main-service */
+export interface LoginWithCodeRequest {
+  code: string
+}
+
 /** Matches `AuthTokenDto` in the login response `data` field */
 interface AuthTokenDto {
   accessToken: string
@@ -19,6 +24,8 @@ export interface MeDto {
   username: string
   email: string
   role: string
+  displayName?: string
+  creditBalance?: number
 }
 
 /** Role required to access the admin dashboard */
@@ -40,6 +47,20 @@ export const authService = {
         usernameOrEmail: credentials.usernameOrEmail.trim(),
         password: credentials.password,
       }
+    )
+    const data = response.data
+    return {
+      token: data.accessToken,
+      refreshToken: data.refreshToken,
+    }
+  },
+
+  async loginWithCode(
+    body: LoginWithCodeRequest,
+  ): Promise<{ token: string; refreshToken?: string }> {
+    const response = await apiClient.post<ApiResponse<AuthTokenDto>>(
+      `${AUTH_BASE_URL}/login-with-code`,
+      { code: body.code.trim() },
     )
     const data = response.data
     return {

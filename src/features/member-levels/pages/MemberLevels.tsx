@@ -50,6 +50,7 @@ function emptyMemberLevelForm(): MemberLevelRequest {
     durationDays: 0,
     creditPoints: 0,
     isBestValue: false,
+    isTopup: false,
     price: 0,
   }
 }
@@ -128,6 +129,7 @@ export function MemberLevels() {
       durationDays: level.durationDays,
       creditPoints: level.creditPoints,
       isBestValue: level.isBestValue,
+      isTopup: level.isTopup ?? false,
       price: typeof level.price === "number" ? level.price : parseFloat(String(level.price)),
     })
   }
@@ -311,6 +313,7 @@ export function MemberLevels() {
                   <TableHead>Duration (days)</TableHead>
                   <TableHead>Credit points</TableHead>
                   <TableHead>Best value</TableHead>
+                  <TableHead>Top-up</TableHead>
                   <TableHead>Price (MMK)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -325,6 +328,13 @@ export function MemberLevels() {
                       <TableCell>
                         {level.isBestValue ? (
                           <Badge variant="secondary">Best value</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {level.isTopup ? (
+                          <Badge variant="outline">Top-up</Badge>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -360,7 +370,7 @@ export function MemberLevels() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No member levels found
                     </TableCell>
                   </TableRow>
@@ -426,6 +436,17 @@ export function MemberLevels() {
                 id="isBestValue"
                 checked={formData.isBestValue}
                 onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="isTopup">Top-up tier</Label>
+                <p className="text-xs text-muted-foreground">Marks this level as a credit top-up product</p>
+              </div>
+              <Switch
+                id="isTopup"
+                checked={formData.isTopup}
+                onCheckedChange={(checked) => setFormData({ ...formData, isTopup: checked })}
               />
             </div>
             <div className="grid gap-2">
@@ -523,6 +544,17 @@ export function MemberLevels() {
                 onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
               />
             </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-isTopup">Top-up tier</Label>
+                <p className="text-xs text-muted-foreground">Marks this level as a credit top-up product</p>
+              </div>
+              <Switch
+                id="edit-isTopup"
+                checked={formData.isTopup}
+                onCheckedChange={(checked) => setFormData({ ...formData, isTopup: checked })}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-price">Price (MMK)</Label>
               <p className="text-xs text-muted-foreground">
@@ -606,6 +638,7 @@ export function MemberLevels() {
                   <li>Duration (days): {formData.durationDays}</li>
                   <li>Credit points: {formData.creditPoints}</li>
                   <li>Best value: {formData.isBestValue ? "Yes" : "No"}</li>
+                  <li>Top-up tier: {formData.isTopup ? "Yes" : "No"}</li>
                   <li>Price (MMK): {formatPriceMmk(formData.price)}</li>
                 </ul>
               </div>

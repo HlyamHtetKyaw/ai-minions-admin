@@ -5,6 +5,7 @@ export interface MemberLevel {
   durationDays: number
   creditPoints: number
   isBestValue: boolean
+  isTopup: boolean
   /** BigDecimal from API — serialized as number in JSON */
   price: number
   createdAt?: string
@@ -16,6 +17,7 @@ export interface MemberLevelRequest {
   durationDays: number
   creditPoints: number
   isBestValue: boolean
+  isTopup: boolean
   price: number
 }
 
