@@ -1,11 +1,20 @@
-import { apiClient, API_BASE_URL } from "@/lib/api-client"
+import { apiClient, API_BASE_URL, API_V1_PREFIX } from "@/lib/api-client"
+import { decodeJwtPayload } from "@/lib/jwt"
 import type { ApiResponse } from "@/types/api"
 
+/** Matches `LoginRequest` in ai-minions-main-service */
 export interface LoginRequest {
-  email: string
+  usernameOrEmail: string
   password: string
 }
 
+/** Matches `AuthTokenDto` in the login response `data` field */
+interface AuthTokenDto {
+  accessToken: string
+  refreshToken: string
+}
+
+/** Normalized for the admin UI after login */
 export interface LoginResponse {
   token: string
   refreshToken?: string
@@ -23,17 +32,46 @@ export interface StoredUser {
   role?: string
 }
 
-const AUTH_BASE_URL = "/api/auth"
+const AUTH_BASE_URL = `${API_V1_PREFIX}/auth`
 
 let logoutCallback: (() => void) | null = null
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await apiClient.post<ApiResponse<LoginResponse>>(
+    const response = await apiClient.post<ApiResponse<AuthTokenDto>>(
       `${AUTH_BASE_URL}/login`,
-      credentials
+      {
+        usernameOrEmail: credentials.usernameOrEmail.trim(),
+        password: credentials.password,
+      }
     )
-    return response.data
+    const data = response.data
+    const token = data.accessToken
+    const refreshToken = data.refreshToken
+
+    const claims = decodeJwtPayload(token)
+    const sub = claims?.sub
+    const userId =
+      typeof sub === "string"
+        ? parseInt(sub, 10)
+        : typeof sub === "number"
+          ? sub
+          : 0
+    const role = typeof claims?.role === "string" ? claims.role : undefined
+    const usernameFromJwt =
+      typeof claims?.username === "string" ? claims.username : undefined
+
+    const typed = credentials.usernameOrEmail.trim()
+    const email =
+      typed.includes("@") ? typed : (usernameFromJwt ?? typed)
+
+    return {
+      token,
+      refreshToken,
+      email,
+      userId,
+      role,
+    }
   },
 
   logout(): void {
@@ -98,7 +136,7 @@ export const authService = {
     if (!token || !user?.userId) return false
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/profiles/users/${user.userId}`,
+        `${API_BASE_URL}${API_V1_PREFIX}/profiles/users/${user.userId}`,
         {
           method: "GET",
           headers: {

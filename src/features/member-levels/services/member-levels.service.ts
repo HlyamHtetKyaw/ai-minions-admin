@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type {
   ApiResponse,
   PaginationDTO,
@@ -10,56 +10,57 @@ import type {
   MemberLevelFilter,
 } from "../types/member-levels.types"
 
-const BASE_URL = "/api/member-levels"
+/** Base path matches `MemberLevelController` in ai-minions-main-service */
+const BASE_URL = `${API_V1_PREFIX}/member-levels`
 
 export const memberLevelsService = {
   /**
-   * Get all member levels with pagination
+   * Lists all member levels (backend exposes GET /api/v1/member-levels).
+   * Applies optional client-side filter + pagination to match existing hooks.
    */
   async getAll(
     pageAndFilter?: PageAndFilterDTO<MemberLevelFilter>
   ): Promise<PaginationDTO<MemberLevel>> {
-    const response = await apiClient.post<
-      ApiResponse<PaginationDTO<MemberLevel>>
-    >(`${BASE_URL}/pageable`, pageAndFilter)
-    return response.data
+    const raw = await apiClient.get<ApiResponse<MemberLevel[]>>(BASE_URL)
+    let list = Array.isArray(raw.data) ? raw.data : []
+
+    const nameQ = pageAndFilter?.filter?.name?.trim().toLowerCase()
+    if (nameQ) {
+      list = list.filter((l) => l.name.toLowerCase().includes(nameQ))
+    }
+
+    const page = pageAndFilter?.page ?? 0
+    const size = pageAndFilter?.size ?? 100
+    const start = page * size
+    const content = list.slice(start, start + size)
+
+    return {
+      content,
+      totalItems: list.length,
+      totalPages: Math.max(1, Math.ceil(list.length / size) || 1),
+      currentPage: page,
+      pageSize: size,
+    }
   },
 
-  /**
-   * Get member level by ID
-   */
   async getById(id: number): Promise<MemberLevel> {
-    const response = await apiClient.get<ApiResponse<MemberLevel>>(
-      `${BASE_URL}/${id}`
-    )
-    return response.data
+    const raw = await apiClient.get<ApiResponse<MemberLevel>>(`${BASE_URL}/${id}`)
+    return raw.data
   },
 
-  /**
-   * Create a new member level
-   */
   async create(data: MemberLevelRequest): Promise<MemberLevel> {
-    const response = await apiClient.post<ApiResponse<MemberLevel>>(
-      BASE_URL,
-      data
-    )
-    return response.data
+    const raw = await apiClient.post<ApiResponse<MemberLevel>>(BASE_URL, data)
+    return raw.data
   },
 
-  /**
-   * Update an existing member level
-   */
   async update(id: number, data: MemberLevelRequest): Promise<MemberLevel> {
-    const response = await apiClient.put<ApiResponse<MemberLevel>>(
+    const raw = await apiClient.put<ApiResponse<MemberLevel>>(
       `${BASE_URL}/${id}`,
       data
     )
-    return response.data
+    return raw.data
   },
 
-  /**
-   * Delete a member level
-   */
   async delete(id: number): Promise<void> {
     await apiClient.delete<ApiResponse<void>>(`${BASE_URL}/${id}`)
   },

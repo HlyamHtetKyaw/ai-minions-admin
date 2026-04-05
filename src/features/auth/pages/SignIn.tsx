@@ -17,7 +17,10 @@ export function SignIn() {
     setLoading(true)
 
     try {
-      const response = await authService.login({ email, password })
+      const response = await authService.login({
+        usernameOrEmail: email,
+        password,
+      })
       authService.setToken(response.token)
       if (response.refreshToken) {
         authService.setRefreshToken(response.refreshToken)
@@ -47,11 +50,12 @@ export function SignIn() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email or username</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="admin@example.com"
+                type="text"
+                autoComplete="username"
+                placeholder="admin@example.com or admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

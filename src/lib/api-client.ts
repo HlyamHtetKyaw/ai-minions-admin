@@ -1,6 +1,9 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://localhost:8080"
 
+/** All main-service REST routes use this prefix (see controllers in ai-minions-main-service). */
+export const API_V1_PREFIX = "/api/v1"
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -42,7 +45,7 @@ async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = localStorage.getItem("refreshToken")
   if (!refreshToken) return false
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+    const response = await fetch(`${API_BASE_URL}${API_V1_PREFIX}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -50,7 +53,7 @@ async function tryRefreshToken(): Promise<boolean> {
     if (!response.ok) return false
     const json = await response.json().catch(() => null)
     const data = json?.data ?? json
-    const newToken = data?.token
+    const newToken = data?.accessToken ?? data?.token
     if (!newToken) return false
     localStorage.setItem("token", newToken)
     if (data?.refreshToken != null) {

@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type {
   JobInitResponse,
   JobStatusResponse,
@@ -6,7 +6,7 @@ import type {
   SummaryStyle,
 } from "../types/voice-notes.types"
 
-const BASE_URL = "/api/voice"
+const BASE_URL = `${API_V1_PREFIX}/voice`
 
 export const voiceService = {
   /**

@@ -29,7 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Combobox } from "@/components/ui/combobox"
 import { Plus, Edit, Trash2, Loader2, MoreVertical, Sparkles } from "lucide-react"
 import {
   DropdownMenu,
@@ -41,18 +40,43 @@ import { useMemberLevels, useCreateMemberLevel, useUpdateMemberLevel, useDeleteM
 import type { MemberLevel, MemberLevelRequest } from "../types/member-levels.types"
 import { memberLevelsCodeService, generateMultipleCodes } from "../services/member-levels-code.service"
 import { Textarea } from "@/components/ui/textarea"
-import { useCodeValues } from "@/features/code-values/hooks/use-code-values"
-import type { CodeValueListResponse } from "@/features/code-values/services/code-values.service"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
+function emptyMemberLevelForm(): MemberLevelRequest {
+  return {
+    name: "",
+    durationDays: 0,
+    creditPoints: 0,
+    isBestValue: false,
+    price: 0,
+  }
+}
+
+function formatPrice(value: number | undefined): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return ""
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+}
+
+function parsePrice(value: string): number {
+  const cleaned = value.replace(/,/g, "").trim()
+  if (!cleaned) return 0
+  const n = parseFloat(cleaned)
+  return Number.isNaN(n) ? 0 : n
+}
+
 export function MemberLevels() {
-  const [page, setPage] = useState(0)
+  const [page] = useState(0)
   const [size] = useState(10)
-  const { data, loading, error, refetch } = useMemberLevels({ 
-    page, 
-    size, 
-    sortBy: "id", 
-    sortDirection: "DESC" 
+  const { data, loading, error, refetch } = useMemberLevels({
+    page,
+    size,
+    sortBy: "id",
+    sortDirection: "DESC",
   })
   const { create, loading: creating } = useCreateMemberLevel()
   const { update, loading: updating } = useUpdateMemberLevel()
@@ -63,44 +87,18 @@ export function MemberLevels() {
   const [deletingLevel, setDeletingLevel] = useState<MemberLevel | null>(null)
   const [codeGenerationLevel, setCodeGenerationLevel] = useState<MemberLevel | null>(null)
   const [generatedCodes, setGeneratedCodes] = useState<string>("")
-  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false)
+  const [isGeneratingCodes] = useState(false)
   const [isSavingCodes, setIsSavingCodes] = useState(false)
   const [codeValidationErrors, setCodeValidationErrors] = useState<Map<string, string>>(new Map())
-  const { data: currencies, loading: loadingCurrencies } = useCodeValues({ constantValue: "CURRENCY" })
-  
-  const [formData, setFormData] = useState<MemberLevelRequest>({
-    name: "",
-    durationDays: undefined,
-    durationMonths: undefined,
-    maxJob: undefined,
-    amount: undefined,
-    currencyId: null,
-  })
 
-  // Helper functions for formatting amount with commas
-  const formatAmount = (value: number | undefined): string => {
-    if (value === undefined || value === null) return ""
-    // Format with commas and handle decimals
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    })
-  }
-
-  const parseAmount = (value: string): number | undefined => {
-    if (!value.trim()) return undefined
-    // Remove commas and parse
-    const cleaned = value.replace(/,/g, '')
-    const parsed = parseFloat(cleaned)
-    return isNaN(parsed) ? undefined : parsed
-  }
+  const [formData, setFormData] = useState<MemberLevelRequest>(emptyMemberLevelForm())
 
   const handleCreate = async () => {
     try {
       await create(formData)
       toast.success("Member level created successfully")
       setIsCreateDialogOpen(false)
-      setFormData({ name: "", durationDays: undefined, durationMonths: undefined, maxJob: undefined, amount: undefined, currencyId: null })
+      setFormData(emptyMemberLevelForm())
       refetch()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create member level")
@@ -111,11 +109,10 @@ export function MemberLevels() {
     setEditingLevel(level)
     setFormData({
       name: level.name,
-      durationDays: level.durationDays ?? undefined,
-      durationMonths: level.durationMonths ?? undefined,
-      maxJob: level.maxJob ?? undefined,
-      amount: level.amount ?? undefined,
-      currencyId: level.currency?.id || null,
+      durationDays: level.durationDays,
+      creditPoints: level.creditPoints,
+      isBestValue: level.isBestValue,
+      price: typeof level.price === "number" ? level.price : parseFloat(String(level.price)),
     })
   }
 
@@ -125,7 +122,7 @@ export function MemberLevels() {
       await update(editingLevel.id, formData)
       toast.success("Member level updated successfully")
       setEditingLevel(null)
-      setFormData({ name: "", durationDays: undefined, durationMonths: undefined, maxJob: undefined, amount: undefined, currencyId: null })
+      setFormData(emptyMemberLevelForm())
       refetch()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update member level")
@@ -146,13 +143,12 @@ export function MemberLevels() {
 
   const handleGenerateCode = (level: MemberLevel) => {
     setCodeGenerationLevel(level)
-    // Auto-generate 5 codes by default
     const codes = generateMultipleCodes(5, 12)
     setGeneratedCodes(codes)
   }
 
   const handleRegenerateCodes = () => {
-    const codeCount = generatedCodes.split("\n").filter(line => line.trim()).length || 5
+    const codeCount = generatedCodes.split("\n").filter((line) => line.trim()).length || 5
     const codes = generateMultipleCodes(codeCount, 12)
     setGeneratedCodes(codes)
     toast.success("Codes regenerated")
@@ -166,12 +162,12 @@ export function MemberLevels() {
 
     setIsSavingCodes(true)
     setCodeValidationErrors(new Map())
-    
+
     try {
       const codeLines = generatedCodes
         .split("\n")
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
 
       if (codeLines.length === 0) {
         toast.error("No valid codes to save")
@@ -179,8 +175,6 @@ export function MemberLevels() {
         return
       }
 
-      // Save each code individually and track errors
-      const userId = 1 // TODO: Get from auth context
       const errors = new Map<string, string>()
       let successCount = 0
 
@@ -201,10 +195,9 @@ export function MemberLevels() {
       setCodeValidationErrors(errors)
 
       if (errors.size > 0) {
-        // Keep only failed codes in textarea for user to fix
         const failedCodes = Array.from(errors.keys()).join("\n")
         setGeneratedCodes(failedCodes)
-        
+
         if (successCount > 0) {
           toast.success(`${successCount} code(s) saved. ${errors.size} code(s) failed.`)
         } else {
@@ -221,6 +214,12 @@ export function MemberLevels() {
       setIsSavingCodes(false)
     }
   }
+
+  const formValid =
+    formData.name.trim().length > 0 &&
+    formData.durationDays >= 0 &&
+    formData.creditPoints >= 0 &&
+    formData.price >= 0
 
   if (error) {
     return (
@@ -241,7 +240,7 @@ export function MemberLevels() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Member Levels</h1>
           <p className="text-muted-foreground">
-            Manage member subscription levels and their features
+            Manage subscription tiers: duration, credit points, pricing, and highlights
           </p>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -268,11 +267,10 @@ export function MemberLevels() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Duration Days</TableHead>
-                  <TableHead>Duration Months</TableHead>
-                  <TableHead>Max Jobs</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Currency</TableHead>
+                  <TableHead>Duration (days)</TableHead>
+                  <TableHead>Credit points</TableHead>
+                  <TableHead>Best value</TableHead>
+                  <TableHead>Price</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -281,11 +279,16 @@ export function MemberLevels() {
                   data.content.map((level) => (
                     <TableRow key={level.id}>
                       <TableCell className="font-medium">{level.name}</TableCell>
-                      <TableCell>{level.durationDays ?? "-"}</TableCell>
-                      <TableCell>{level.durationMonths ?? "-"}</TableCell>
-                      <TableCell>{level.maxJob ?? "-"}</TableCell>
-                      <TableCell>{level.amount ? formatAmount(level.amount) : "-"}</TableCell>
-                      <TableCell>{level.currency ? `${level.currency.codeValue} - ${level.currency.description}` : "-"}</TableCell>
+                      <TableCell>{level.durationDays}</TableCell>
+                      <TableCell>{level.creditPoints}</TableCell>
+                      <TableCell>
+                        {level.isBestValue ? (
+                          <Badge variant="secondary">Best value</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatPrice(level.price)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -316,7 +319,7 @@ export function MemberLevels() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No member levels found
                     </TableCell>
                   </TableRow>
@@ -327,14 +330,11 @@ export function MemberLevels() {
         </CardContent>
       </Card>
 
-      {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Member Level</DialogTitle>
-            <DialogDescription>
-              Add a new member level to your system
-            </DialogDescription>
+            <DialogDescription>Add a new member level to your system</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -343,98 +343,72 @@ export function MemberLevels() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter level name"
+                placeholder="e.g. Gold"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="durationDays">Duration Days</Label>
+              <Label htmlFor="durationDays">Duration (days)</Label>
               <Input
                 id="durationDays"
                 type="number"
-                value={formData.durationDays ?? ""}
+                min={0}
+                value={formData.durationDays}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    durationDays: e.target.value ? parseInt(e.target.value) : undefined,
+                    durationDays: e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0,
                   })
                 }
-                placeholder="Enter duration in days"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="durationMonths">Duration Months</Label>
+              <Label htmlFor="creditPoints">Credit points</Label>
               <Input
-                id="durationMonths"
+                id="creditPoints"
                 type="number"
-                value={formData.durationMonths ?? ""}
+                min={0}
+                value={formData.creditPoints}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    durationMonths: e.target.value ? parseInt(e.target.value) : undefined,
+                    creditPoints: e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0,
                   })
                 }
-                placeholder="Enter duration in months"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="isBestValue">Best value</Label>
+                <p className="text-xs text-muted-foreground">Highlight this tier in the catalog</p>
+              </div>
+              <Switch
+                id="isBestValue"
+                checked={formData.isBestValue}
+                onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="maxJob">Max Jobs</Label>
+              <Label htmlFor="price">Price</Label>
               <Input
-                id="maxJob"
-                type="number"
-                value={formData.maxJob ?? ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    maxJob: e.target.value ? parseInt(e.target.value) : undefined,
-                  })
-                }
-                placeholder="Enter maximum number of jobs"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
+                id="price"
                 type="text"
-                value={formatAmount(formData.amount)}
-                onChange={(e) => {
-                  const parsed = parseAmount(e.target.value)
+                inputMode="decimal"
+                value={formatPrice(formData.price)}
+                onChange={(e) =>
                   setFormData({
                     ...formData,
-                    amount: parsed,
-                  })
-                }}
-                placeholder="Enter amount"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Combobox
-                options={currencies.map((currency) => ({
-                  value: currency.id.toString(),
-                  label: `${currency.codeValue} - ${currency.description}`,
-                }))}
-                value={formData.currencyId?.toString() || ""}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    currencyId: value ? parseInt(value) : null,
+                    price: parsePrice(e.target.value),
                   })
                 }
-                placeholder="Select currency"
-                searchPlaceholder="Search currency..."
-                disabled={loadingCurrencies}
+                placeholder="0.00"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={creating || !formData.name}>
+            <Button onClick={handleCreate} disabled={creating || !formValid}>
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create
             </Button>
@@ -442,14 +416,11 @@ export function MemberLevels() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={!!editingLevel} onOpenChange={(open) => !open && setEditingLevel(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Member Level</DialogTitle>
-            <DialogDescription>
-              Update member level information
-            </DialogDescription>
+            <DialogDescription>Update member level information</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -462,94 +433,68 @@ export function MemberLevels() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-durationDays">Duration Days</Label>
+              <Label htmlFor="edit-durationDays">Duration (days)</Label>
               <Input
                 id="edit-durationDays"
                 type="number"
-                value={formData.durationDays ?? ""}
+                min={0}
+                value={formData.durationDays}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    durationDays: e.target.value ? parseInt(e.target.value) : undefined,
+                    durationDays: e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0,
                   })
                 }
-                placeholder="Enter duration in days"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-durationMonths">Duration Months</Label>
+              <Label htmlFor="edit-creditPoints">Credit points</Label>
               <Input
-                id="edit-durationMonths"
+                id="edit-creditPoints"
                 type="number"
-                value={formData.durationMonths ?? ""}
+                min={0}
+                value={formData.creditPoints}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    durationMonths: e.target.value ? parseInt(e.target.value) : undefined,
+                    creditPoints: e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0,
                   })
                 }
-                placeholder="Enter duration in months"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-isBestValue">Best value</Label>
+                <p className="text-xs text-muted-foreground">Highlight this tier in the catalog</p>
+              </div>
+              <Switch
+                id="edit-isBestValue"
+                checked={formData.isBestValue}
+                onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-maxJob">Max Jobs</Label>
+              <Label htmlFor="edit-price">Price</Label>
               <Input
-                id="edit-maxJob"
-                type="number"
-                value={formData.maxJob ?? ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    maxJob: e.target.value ? parseInt(e.target.value) : undefined,
-                  })
-                }
-                placeholder="Enter maximum number of jobs"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-amount">Amount</Label>
-              <Input
-                id="edit-amount"
+                id="edit-price"
                 type="text"
-                value={formatAmount(formData.amount)}
-                onChange={(e) => {
-                  const parsed = parseAmount(e.target.value)
+                inputMode="decimal"
+                value={formatPrice(formData.price)}
+                onChange={(e) =>
                   setFormData({
                     ...formData,
-                    amount: parsed,
-                  })
-                }}
-                placeholder="Enter amount"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-currency">Currency</Label>
-              <Combobox
-                options={currencies.map((currency) => ({
-                  value: currency.id.toString(),
-                  label: `${currency.codeValue} - ${currency.description}`,
-                }))}
-                value={formData.currencyId?.toString() || ""}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    currencyId: value ? parseInt(value) : null,
+                    price: parsePrice(e.target.value),
                   })
                 }
-                placeholder="Select currency"
-                searchPlaceholder="Search currency..."
-                disabled={loadingCurrencies}
+                placeholder="0.00"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditingLevel(null)}
-            >
+            <Button variant="outline" onClick={() => setEditingLevel(null)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={updating || !formData.name}>
+            <Button onClick={handleUpdate} disabled={updating || !formValid}>
               {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update
             </Button>
@@ -557,14 +502,13 @@ export function MemberLevels() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletingLevel} onOpenChange={(open) => !open && setDeletingLevel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the member level
-              "{deletingLevel?.name}".
+              &quot;{deletingLevel?.name}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -581,7 +525,6 @@ export function MemberLevels() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Code Generation Dialog */}
       <Dialog open={!!codeGenerationLevel} onOpenChange={(open) => !open && setCodeGenerationLevel(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -622,14 +565,14 @@ export function MemberLevels() {
               />
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  {generatedCodes.split("\n").filter(line => line.trim()).length} code(s) ready to save
+                  {generatedCodes.split("\n").filter((line) => line.trim()).length} code(s) ready to save
                 </p>
                 {codeValidationErrors.size > 0 && (
                   <div className="bg-destructive/10 border border-destructive/30 rounded p-3 space-y-1">
                     <p className="text-xs font-semibold text-destructive">Validation Errors:</p>
-                    {Array.from(codeValidationErrors.entries()).map(([code, error]) => (
+                    {Array.from(codeValidationErrors.entries()).map(([code, err]) => (
                       <p key={code} className="text-xs text-destructive">
-                        <span className="font-mono">{code}</span>: {error}
+                        <span className="font-mono">{code}</span>: {err}
                       </p>
                     ))}
                   </div>
@@ -648,10 +591,7 @@ export function MemberLevels() {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleSaveCodes}
-              disabled={isSavingCodes || !generatedCodes.trim()}
-            >
+            <Button onClick={handleSaveCodes} disabled={isSavingCodes || !generatedCodes.trim()}>
               {isSavingCodes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Codes
             </Button>

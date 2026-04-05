@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type { ApiResponse } from "@/types/api"
 
 export interface CodeValueListResponse {
@@ -8,7 +8,7 @@ export interface CodeValueListResponse {
   description: string
 }
 
-const BASE_URL = "/api/code-values"
+const BASE_URL = `${API_V1_PREFIX}/code-values`
 
 export const codeValuesService = {
   /**

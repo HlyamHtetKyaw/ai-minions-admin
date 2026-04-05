@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type {
   ApiResponse,
   PaginationDTO,
@@ -11,7 +11,7 @@ import type {
   CreateUserWithLoginCodeRequest,
 } from "../types/users.types"
 
-const BASE_URL = "/api/users"
+const BASE_URL = `${API_V1_PREFIX}/users`
 
 export const usersService = {
   /**

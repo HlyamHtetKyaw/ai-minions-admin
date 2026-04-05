@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type { ApiResponse } from "@/types/api"
 
 export interface Profile {
@@ -27,7 +27,7 @@ export interface ApiKeyUpdateRequest {
   apiKey?: string
 }
 
-const BASE_URL = "/api/profiles"
+const BASE_URL = `${API_V1_PREFIX}/profiles`
 
 export const profileService = {
   /**

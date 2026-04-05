@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type { ApiResponse, PaginationDTO } from "@/types/api"
 import type {
   VoiceNote,
@@ -14,9 +14,10 @@ export interface TextSummaryRequest {
   voiceNoteDetailId: number
   style: SummaryStyle
 }
-const BASE_URL = "/api/voice-notes"
-const DETAILS_BASE_URL = "/api/voice-notes-details"
-const BASE_URL_FOR_VOICE = "/api/voice"
+
+const BASE_URL = `${API_V1_PREFIX}/voice-notes`
+const DETAILS_BASE_URL = `${API_V1_PREFIX}/voice-notes-details`
+const BASE_URL_FOR_VOICE = `${API_V1_PREFIX}/voice`
 // Voice Notes Services
 export const voiceNotesService = {
   getAll: async (params?: VoiceNotePageAndFilter): Promise<PaginationDTO<VoiceNote>> => {
