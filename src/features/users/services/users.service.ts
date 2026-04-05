@@ -13,68 +13,99 @@ import type {
 
 const BASE_URL = `${API_V1_PREFIX}/users`
 
+/** Matches `UserDto` from ai-minions-main-service (password always null in JSON). */
+interface UserDtoRaw {
+  id: number
+  username?: string
+  email: string
+  loginCode?: string
+  roleId?: number
+  roleName?: string
+  profileId?: number
+  profileFullname?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+function mapUser(raw: UserDtoRaw): User {
+  return {
+    id: raw.id,
+    email: raw.email,
+    username: raw.username,
+    roleName: raw.roleName,
+    loginCode: raw.loginCode ?? undefined,
+    profileId: raw.profileId ?? undefined,
+    name: raw.profileFullname ?? undefined,
+    masterData: {
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt,
+    },
+  }
+}
+
 export const usersService = {
   /**
-   * Get all users with pagination
+   * Lists users via GET /api/v1/users; applies client-side filter + pagination (same pattern as member levels).
    */
   async getAll(
     pageAndFilter?: PageAndFilterDTO<UserFilter>
   ): Promise<PaginationDTO<User>> {
-    const response = await apiClient.post<
-      ApiResponse<PaginationDTO<User>>
-    >(`${BASE_URL}/pageable`, pageAndFilter)
-    return response.data
+    const raw = await apiClient.get<ApiResponse<UserDtoRaw[]>>(BASE_URL)
+    let list = Array.isArray(raw.data) ? raw.data.map(mapUser) : []
+
+    const q = pageAndFilter?.filter?.email?.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          (u.username && u.username.toLowerCase().includes(q)) ||
+          (u.name && u.name.toLowerCase().includes(q))
+      )
+    }
+
+    const page = pageAndFilter?.page ?? 0
+    const size = pageAndFilter?.size ?? 10
+    const start = page * size
+    const content = list.slice(start, start + size)
+
+    return {
+      content,
+      totalItems: list.length,
+      totalPages: Math.max(1, Math.ceil(list.length / size) || 1),
+      currentPage: page,
+      pageSize: size,
+    }
   },
 
-  /**
-   * Get user by ID
-   */
   async getById(id: number): Promise<User> {
-    const response = await apiClient.get<ApiResponse<User>>(
-      `${BASE_URL}/${id}`
-    )
-    return response.data
+    const raw = await apiClient.get<ApiResponse<UserDtoRaw>>(`${BASE_URL}/${id}`)
+    return mapUser(raw.data)
   },
 
-  /**
-   * Create a new user
-   */
   async create(data: UserRequest): Promise<User> {
-    const response = await apiClient.post<ApiResponse<User>>(
-      BASE_URL,
-      data
-    )
-    return response.data
+    const raw = await apiClient.post<ApiResponse<UserDtoRaw>>(BASE_URL, data)
+    return mapUser(raw.data)
   },
 
-  /**
-   * Update an existing user
-   */
   async update(id: number, data: UserRequest): Promise<User> {
-    const response = await apiClient.put<ApiResponse<User>>(
+    const raw = await apiClient.put<ApiResponse<UserDtoRaw>>(
       `${BASE_URL}/${id}`,
       data
     )
-    return response.data
+    return mapUser(raw.data)
   },
 
-  /**
-   * Delete a user
-   */
   async delete(id: number): Promise<void> {
-    await apiClient.delete<ApiResponse<void>>(`${BASE_URL}/${id}`)
+    await apiClient.delete(`${BASE_URL}/${id}`)
   },
 
-  /**
-   * Create a user with login code
-   */
   async createWithLoginCode(
     data: CreateUserWithLoginCodeRequest
   ): Promise<User> {
-    const response = await apiClient.post<ApiResponse<User>>(
+    const raw = await apiClient.post<ApiResponse<UserDtoRaw>>(
       `${BASE_URL}/with-login-code`,
       data
     )
-    return response.data
+    return mapUser(raw.data)
   },
 }

@@ -37,11 +37,22 @@ function clearAuthAndRedirect() {
   window.location.href = "/signin"
 }
 
+let refreshInFlight: Promise<boolean> | null = null
+
 /**
  * Try to refresh the access token using the stored refresh token.
  * Returns true if a new token was stored, false otherwise.
+ * Single-flight: parallel 401s share one refresh to avoid races.
  */
 async function tryRefreshToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = performRefresh().finally(() => {
+    refreshInFlight = null
+  })
+  return refreshInFlight
+}
+
+async function performRefresh(): Promise<boolean> {
   const refreshToken = localStorage.getItem("refreshToken")
   if (!refreshToken) return false
   try {

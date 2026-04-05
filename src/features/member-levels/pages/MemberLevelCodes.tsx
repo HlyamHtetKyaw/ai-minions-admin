@@ -54,6 +54,7 @@ export function MemberLevelCodes() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
   const [editFormData, setEditFormData] = useState<Partial<MemberLevelCodeRequest>>({
     code: "",
     activatedAt: "",
@@ -124,7 +125,12 @@ export function MemberLevelCodes() {
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdate = async () => {
+  const openUpdateConfirm = () => {
+    if (!editingCode) return
+    setUpdateConfirmOpen(true)
+  }
+
+  const performCodeUpdate = async () => {
     if (!editingCode || !editFormData) return
     try {
       setIsUpdating(true)
@@ -144,6 +150,11 @@ export function MemberLevelCodes() {
     } finally {
       setIsUpdating(false)
     }
+  }
+
+  const onConfirmCodeUpdate = async () => {
+    setUpdateConfirmOpen(false)
+    await performCodeUpdate()
   }
 
   const handleDeleteClick = (code: MemberLevelCode) => {
@@ -263,8 +274,8 @@ export function MemberLevelCodes() {
                   <TableRow>
                     <TableHead>Code</TableHead>
                     <TableHead>Member Level</TableHead>
-                    <TableHead>Activated At</TableHead>
-                    <TableHead>Activated User Name</TableHead>
+                    <TableHead>Purchased User Name</TableHead>
+                    <TableHead>Activated At</TableHead>                    
                     <TableHead>Expired At</TableHead>
                     <TableHead>Created At</TableHead>
                     <TableHead>Actions</TableHead>
@@ -282,8 +293,8 @@ export function MemberLevelCodes() {
                             (level) => level.id === code.memberLevelId
                           )?.name || `Level ${code.memberLevelId}`}
                         </TableCell>
-                        <TableCell>{formatDate(code.activatedAt)}</TableCell>
                         <TableCell>{code.purchasedUserName || "-"}</TableCell>
+                        <TableCell>{formatDate(code.activatedAt)}</TableCell>
                         <TableCell>{formatDate(code.expiredAt)}</TableCell>
                         <TableCell>
                           {formatDate(code.masterData?.createdAt)}
@@ -424,13 +435,51 @@ export function MemberLevelCodes() {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={isUpdating}>
+            <Button onClick={openUpdateConfirm} disabled={isUpdating}>
               {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Update
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={updateConfirmOpen} onOpenChange={setUpdateConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save code changes?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p className="text-sm text-muted-foreground">
+                  Confirm the following before updating this member level code.
+                </p>
+                <ul className="list-inside list-disc space-y-1 text-sm text-foreground">
+                  <li>Code: {editFormData.code ?? editingCode?.code ?? "—"}</li>
+                  <li>
+                    Member level:{" "}
+                    {memberLevelsData?.content?.find((l) => l.id === editFormData.memberLevelId)?.name ??
+                      `ID ${editFormData.memberLevelId ?? "—"}`}
+                  </li>
+                  <li>Activated at: {editFormData.activatedAt?.trim() || "—"}</li>
+                  <li>Expired at: {editFormData.expiredAt?.trim() || "—"}</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void onConfirmCodeUpdate()
+              }}
+              disabled={isUpdating}
+            >
+              {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

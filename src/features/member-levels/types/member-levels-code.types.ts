@@ -16,7 +16,25 @@ export interface MemberLevelCodeRequest {
   activatedAt?: string
   expiredAt?: string
   memberLevelId: number
-  userId: number
+  /** Omit or 0 for open codes (any user may redeem). */
+  userId?: number
+}
+
+/** Response from POST /api/v1/member-levels-codes/activate */
+export interface MemberLevelActivationResult {
+  memberLevelCode: MemberLevelCode
+  /** Server `ProfileDto` (fullname, memberLevelId, …). */
+  profile: {
+    id: number
+    userId?: number
+    memberLevelId?: number
+    fullname?: string
+    phoneNumber?: string
+    geminiApiKey?: string
+    openAiApiKey?: string
+    createdAt?: string
+    updatedAt?: string
+  }
 }
 
 /** Payload for update; omit userId so activated user is not changed */

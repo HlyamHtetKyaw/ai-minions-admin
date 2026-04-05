@@ -1,5 +1,4 @@
-import { apiClient, API_BASE_URL, API_V1_PREFIX } from "@/lib/api-client"
-import { decodeJwtPayload } from "@/lib/jwt"
+import { apiClient, API_V1_PREFIX } from "@/lib/api-client"
 import type { ApiResponse } from "@/types/api"
 
 /** Matches `LoginRequest` in ai-minions-main-service */
@@ -14,13 +13,12 @@ interface AuthTokenDto {
   refreshToken: string
 }
 
-/** Normalized for the admin UI after login */
-export interface LoginResponse {
-  token: string
-  refreshToken?: string
-  email: string
+/** Matches `CurrentUserDto` from GET /api/v1/auth/me */
+export interface MeDto {
   userId: number
-  role?: string
+  username: string
+  email: string
+  role: string
 }
 
 /** Role required to access the admin dashboard */
@@ -34,10 +32,8 @@ export interface StoredUser {
 
 const AUTH_BASE_URL = `${API_V1_PREFIX}/auth`
 
-let logoutCallback: (() => void) | null = null
-
 export const authService = {
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
+  async login(credentials: LoginRequest): Promise<{ token: string; refreshToken?: string }> {
     const response = await apiClient.post<ApiResponse<AuthTokenDto>>(
       `${AUTH_BASE_URL}/login`,
       {
@@ -46,32 +42,22 @@ export const authService = {
       }
     )
     const data = response.data
-    const token = data.accessToken
-    const refreshToken = data.refreshToken
-
-    const claims = decodeJwtPayload(token)
-    const sub = claims?.sub
-    const userId =
-      typeof sub === "string"
-        ? parseInt(sub, 10)
-        : typeof sub === "number"
-          ? sub
-          : 0
-    const role = typeof claims?.role === "string" ? claims.role : undefined
-    const usernameFromJwt =
-      typeof claims?.username === "string" ? claims.username : undefined
-
-    const typed = credentials.usernameOrEmail.trim()
-    const email =
-      typed.includes("@") ? typed : (usernameFromJwt ?? typed)
-
     return {
-      token,
-      refreshToken,
-      email,
-      userId,
-      role,
+      token: data.accessToken,
+      refreshToken: data.refreshToken,
     }
+  },
+
+  /**
+   * Current user from DB (no Profile row required). Call after storing the access token.
+   */
+  async fetchMe(): Promise<MeDto> {
+    const response = await apiClient.get<ApiResponse<MeDto>>(`${AUTH_BASE_URL}/me`)
+    const data = response.data
+    if (data == null) {
+      throw new Error("Invalid session: empty /auth/me response")
+    }
+    return data
   },
 
   logout(): void {
@@ -121,36 +107,23 @@ export const authService = {
     return user?.role === ADMIN_ROLE
   },
 
-  setLogoutCallback(callback: (() => void) | null): void {
-    logoutCallback = callback
-  },
-
   /**
-   * Check if the current token is still valid by calling a protected endpoint.
-   * Returns true if the session is valid, false if token is missing/expired/invalid.
-   * Clears storage on 401 so the app can show sign-in.
+   * Validates the access token via GET /api/v1/auth/me (does not require a Profile).
+   * Refreshes stored user from the server when successful.
    */
   async validateSession(): Promise<boolean> {
-    const user = this.getUser()
     const token = this.getToken()
-    if (!token || !user?.userId) return false
+    if (!token) return false
     try {
-      const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/profiles/users/${user.userId}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      if (response.status === 401) {
-        this.logout()
-        return false
-      }
-      return response.ok
+      const me = await this.fetchMe()
+      this.setUser({
+        email: me.email,
+        userId: me.userId,
+        role: me.role,
+      })
+      return true
     } catch {
+      this.logout()
       return false
     }
   },

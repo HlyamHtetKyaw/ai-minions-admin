@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Search, MoreVertical, Loader2, Trash2, Plus, Eye, EyeOff } from "lucide-react"
+import { Search, MoreVertical, Loader2, Trash2, Plus, Eye, EyeOff, Copy } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,7 +61,9 @@ export function Users() {
     size,
     sortBy: "id",
     sortDirection: "DESC",
-    filter: debouncedSearchQuery ? { email: debouncedSearchQuery } : undefined
+    filter: debouncedSearchQuery
+      ? { email: debouncedSearchQuery }
+      : undefined,
   })
   const { delete: deleteUser, loading: deleting } = useDeleteUser()
   const { create: createUserWithLoginCode, loading: creatingUser } = useCreateUserWithLoginCode()
@@ -75,10 +77,37 @@ export function Users() {
   const { data: viewingUser, loading: loadingUserDetails } = useUser(viewingUserId)
   const [showLoginCode, setShowLoginCode] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [createUserConfirmOpen, setCreateUserConfirmOpen] = useState(false)
   const [formData, setFormData] = useState({
     loginCode: "",
     memberLevelId: "",
   })
+
+  const selectedMemberLevelName =
+    memberLevelsData?.content?.find((l) => l.id.toString() === formData.memberLevelId)?.name ?? "—"
+
+  useEffect(() => {
+    if (!viewingUserId) setShowLoginCode(false)
+  }, [viewingUserId])
+
+  const copyToClipboard = async (label: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success(`${label} copied to clipboard`)
+    } catch {
+      toast.error("Could not copy to clipboard")
+    }
+  }
+
+  const closeUserDetail = () => {
+    setViewingUserId(null)
+  }
+
+  const openDeleteFromDetail = () => {
+    if (!viewingUser) return
+    setDeletingUser(viewingUser)
+    closeUserDetail()
+  }
 
   const handleDelete = async () => {
     if (!deletingUser) return
@@ -92,16 +121,20 @@ export function Users() {
     }
   }
 
-  const handleCreateUserWithLoginCode = async () => {
+  const openCreateUserConfirm = () => {
     if (!formData.loginCode.trim() || !formData.memberLevelId) {
       toast.error("Please fill in all fields")
       return
     }
+    setCreateUserConfirmOpen(true)
+  }
 
+  const performCreateUserWithLoginCode = async () => {
+    setCreateUserConfirmOpen(false)
     try {
       await createUserWithLoginCode({
         loginCode: formData.loginCode.trim(),
-        memberLevelId: parseInt(formData.memberLevelId),
+        memberLevelId: parseInt(formData.memberLevelId, 10),
       })
       toast.success("User created successfully with login code")
       setIsCreateDialogOpen(false)
@@ -162,7 +195,7 @@ export function Users() {
             <div className="relative w-64">
               <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by email..."
+                placeholder="Search by email, username, or name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8"
@@ -180,8 +213,10 @@ export function Users() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -195,14 +230,18 @@ export function Users() {
                           <Avatar className="h-8 w-8">
                             <AvatarImage src="" alt={user.email} />
                             <AvatarFallback>
-                              {user.email.charAt(0).toUpperCase()}
+                              {(user.username || user.email).charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{user.email.split("@")[0]}</span>
+                          <span className="font-medium">
+                            {user.name || user.username || user.email.split("@")[0]}
+                          </span>
                         </div>
                       </TableCell>
+                      <TableCell className="font-mono text-sm">{user.username ?? "—"}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.name ?? "-"}</TableCell>
+                      <TableCell>{user.name ?? "—"}</TableCell>
+                      <TableCell>{user.roleName ?? "—"}</TableCell>
                       <TableCell>
                         {formatDate(user.masterData?.createdAt)}
                       </TableCell>
@@ -215,9 +254,8 @@ export function Users() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setViewingUserId(user.id)}>
-                              View Details
+                              View details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Edit User</DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => setDeletingUser(user)}
@@ -232,7 +270,7 @@ export function Users() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -243,95 +281,172 @@ export function Users() {
         </CardContent>
       </Card>
 
-      {/* User Details Dialog */}
-      <Dialog open={!!viewingUserId} onOpenChange={(open) => !open && setViewingUserId(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              View detailed information about the user
-            </DialogDescription>
-          </DialogHeader>
-          {loadingUserDetails ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : viewingUser ? (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>User ID</Label>
-                <div className="px-3 py-2 border rounded-md bg-muted/50">
-                  {viewingUser.id}
-                </div>
+      {/* User Details Dialog — scrollable body + fixed footer so actions stay on screen */}
+      <Dialog open={!!viewingUserId} onOpenChange={(open) => !open && closeUserDetail()}>
+        <DialogContent className="flex h-[min(90dvh,820px)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+          <div className="shrink-0 border-b px-6 pb-4 pt-6 pr-14">
+            <DialogHeader className="text-left">
+              <DialogTitle>User Details</DialogTitle>
+              <DialogDescription>
+                Review this account. Actions are pinned below; scroll the fields if needed.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {loadingUserDetails ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-              <div className="grid gap-2">
-                <Label>Email</Label>
-                <div className="px-3 py-2 border rounded-md bg-muted/50">
-                  {viewingUser.email}
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Name</Label>
-                <div className="px-3 py-2 border rounded-md bg-muted/50">
-                  {viewingUser.name ?? "-"}
-                </div>
-              </div>
-              {viewingUser.loginCode && (
+            ) : viewingUser ? (
+              <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label>Login Code</Label>
+                  <Label>User ID</Label>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 px-3 py-2 border rounded-md bg-muted/50 font-mono">
-                      {showLoginCode ? viewingUser.loginCode : "••••••••"}
+                    <div className="flex-1 rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm">
+                      {viewingUser.id}
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => setShowLoginCode((prev) => !prev)}
+                      title="Copy user ID"
+                      onClick={() => copyToClipboard("User ID", String(viewingUser.id))}
                     >
-                      {showLoginCode ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      <Copy className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-              )}
-              {viewingUser.profileId && (
                 <div className="grid gap-2">
-                  <Label>Profile ID</Label>
-                  <div className="px-3 py-2 border rounded-md bg-muted/50">
-                    {viewingUser.profileId}
+                  <Label>Username</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm">
+                      {viewingUser.username ?? "—"}
+                    </div>
+                    {viewingUser.username && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="Copy username"
+                        onClick={() => copyToClipboard("Username", viewingUser.username!)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-              )}
-              {viewingUser.masterData?.createdAt && (
                 <div className="grid gap-2">
-                  <Label>Created At</Label>
-                  <div className="px-3 py-2 border rounded-md bg-muted/50">
-                    {formatDate(viewingUser.masterData.createdAt)}
+                  <Label>Email</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 break-all rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                      {viewingUser.email}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Copy email"
+                      onClick={() => copyToClipboard("Email", viewingUser.email)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              )}
-              {viewingUser.masterData?.updatedAt && (
                 <div className="grid gap-2">
-                  <Label>Updated At</Label>
-                  <div className="px-3 py-2 border rounded-md bg-muted/50">
-                    {formatDate(viewingUser.masterData.updatedAt)}
+                  <Label>Role</Label>
+                  <div className="rounded-md border bg-muted/50 px-3 py-2">
+                    {viewingUser.roleName ?? "—"}
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              Failed to load user details
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingUserId(null)}>
+                <div className="grid gap-2">
+                  <Label>Name</Label>
+                  <div className="rounded-md border bg-muted/50 px-3 py-2">
+                    {viewingUser.name ?? "—"}
+                  </div>
+                </div>
+                {viewingUser.loginCode && (
+                  <div className="grid gap-2">
+                    <Label>Login Code</Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="min-w-0 flex-1 rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm">
+                        {showLoginCode ? viewingUser.loginCode : "••••••••"}
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title={showLoginCode ? "Hide" : "Show"}
+                          onClick={() => setShowLoginCode((prev) => !prev)}
+                        >
+                          {showLoginCode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title="Copy login code"
+                          onClick={() => copyToClipboard("Login code", viewingUser.loginCode!)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {viewingUser.profileId != null && (
+                  <div className="grid gap-2">
+                    <Label>Profile ID</Label>
+                    <div className="rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm">
+                      {viewingUser.profileId}
+                    </div>
+                  </div>
+                )}
+                {viewingUser.masterData?.createdAt && (
+                  <div className="grid gap-2">
+                    <Label>Created At</Label>
+                    <div className="rounded-md border bg-muted/50 px-3 py-2">
+                      {formatDate(viewingUser.masterData.createdAt)}
+                    </div>
+                  </div>
+                )}
+                {viewingUser.masterData?.updatedAt && (
+                  <div className="grid gap-2">
+                    <Label>Updated At</Label>
+                    <div className="rounded-md border bg-muted/50 px-3 py-2">
+                      {formatDate(viewingUser.masterData.updatedAt)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">
+                Failed to load user details
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t bg-background px-6 py-4 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={closeUserDetail}>
               Close
             </Button>
+            {!loadingUserDetails && viewingUser ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => copyToClipboard("Email", viewingUser.email)}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy email
+                </Button>
+                <Button type="button" variant="destructive" onClick={openDeleteFromDetail}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete user
+                </Button>
+              </>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -342,7 +457,8 @@ export function Users() {
           <DialogHeader>
             <DialogTitle>Create User with Login Code</DialogTitle>
             <DialogDescription>
-              Create a new user with a login code. The user will be created with a random name and email format: codeuser01@gmail.com
+              Creates a user with this login code, profile + member level, and a matching member level code
+              row. Email format: <span className="font-mono">codeuser&#123;id&#125;@aiminions.local</span>.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -384,13 +500,47 @@ export function Users() {
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateUserWithLoginCode} disabled={creatingUser}>
-              {creatingUser && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create User
+            <Button onClick={openCreateUserConfirm} disabled={creatingUser}>
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={createUserConfirmOpen} onOpenChange={setCreateUserConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create this user?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p className="text-sm text-muted-foreground">
+                  A user account, profile, and member level code row will be created with these values.
+                </p>
+                <ul className="list-inside list-disc space-y-1 text-sm text-foreground">
+                  <li>
+                    Login code:{" "}
+                    <span className="font-mono">{formData.loginCode.trim() || "—"}</span>
+                  </li>
+                  <li>Member level: {selectedMemberLevelName}</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={creatingUser}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void performCreateUserWithLoginCode()
+              }}
+              disabled={creatingUser}
+            >
+              {creatingUser && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm & create
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>

@@ -17,22 +17,24 @@ export function SignIn() {
     setLoading(true)
 
     try {
-      const response = await authService.login({
+      const { token, refreshToken } = await authService.login({
         usernameOrEmail: email,
         password,
       })
-      authService.setToken(response.token)
-      if (response.refreshToken) {
-        authService.setRefreshToken(response.refreshToken)
+      authService.setToken(token)
+      if (refreshToken) {
+        authService.setRefreshToken(refreshToken)
       }
+      const me = await authService.fetchMe()
       authService.setUser({
-        email: response.email,
-        userId: response.userId,
-        role: response.role,
+        email: me.email,
+        userId: me.userId,
+        role: me.role,
       })
       toast.success("Login successful!")
       window.location.href = "/dashboard"
     } catch (error: any) {
+      authService.logout()
       toast.error(error.message || "Login failed. Please check your credentials.")
       setLoading(false)
     }

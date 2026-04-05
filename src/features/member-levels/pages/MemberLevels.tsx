@@ -69,6 +69,12 @@ function parsePrice(value: string): number {
   return Number.isNaN(n) ? 0 : n
 }
 
+/** Table/list display: amounts are stored and shown as Myanmar Kyat only. */
+function formatPriceMmk(value: number | undefined): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—"
+  return `${formatPrice(value)} MMK`
+}
+
 export function MemberLevels() {
   const [page] = useState(0)
   const [size] = useState(10)
@@ -90,10 +96,20 @@ export function MemberLevels() {
   const [isGeneratingCodes] = useState(false)
   const [isSavingCodes, setIsSavingCodes] = useState(false)
   const [codeValidationErrors, setCodeValidationErrors] = useState<Map<string, string>>(new Map())
+  const [memberLevelConfirmOpen, setMemberLevelConfirmOpen] = useState(false)
+  const [memberLevelConfirmKind, setMemberLevelConfirmKind] = useState<"create" | "update" | null>(null)
+  const [codesSaveConfirmOpen, setCodesSaveConfirmOpen] = useState(false)
 
   const [formData, setFormData] = useState<MemberLevelRequest>(emptyMemberLevelForm())
 
-  const handleCreate = async () => {
+  const openMemberLevelConfirm = (kind: "create" | "update") => {
+    if (!formValid) return
+    if (kind === "update" && !editingLevel) return
+    setMemberLevelConfirmKind(kind)
+    setMemberLevelConfirmOpen(true)
+  }
+
+  const performCreate = async () => {
     try {
       await create(formData)
       toast.success("Member level created successfully")
@@ -116,7 +132,7 @@ export function MemberLevels() {
     })
   }
 
-  const handleUpdate = async () => {
+  const performUpdate = async () => {
     if (!editingLevel) return
     try {
       await update(editingLevel.id, formData)
@@ -127,6 +143,14 @@ export function MemberLevels() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update member level")
     }
+  }
+
+  const onConfirmMemberLevelSave = async () => {
+    const kind = memberLevelConfirmKind
+    setMemberLevelConfirmOpen(false)
+    setMemberLevelConfirmKind(null)
+    if (kind === "create") await performCreate()
+    else if (kind === "update") await performUpdate()
   }
 
   const handleDelete = async () => {
@@ -154,9 +178,25 @@ export function MemberLevels() {
     toast.success("Codes regenerated")
   }
 
-  const handleSaveCodes = async () => {
+  const openCodesSaveConfirm = () => {
     if (!codeGenerationLevel || !generatedCodes.trim()) {
       toast.error("Please generate at least one code")
+      return
+    }
+    const codeLines = generatedCodes
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+    if (codeLines.length === 0) {
+      toast.error("No valid codes to save")
+      return
+    }
+    setCodesSaveConfirmOpen(true)
+  }
+
+  const handleSaveCodes = async () => {
+    setCodesSaveConfirmOpen(false)
+    if (!codeGenerationLevel || !generatedCodes.trim()) {
       return
     }
 
@@ -240,7 +280,8 @@ export function MemberLevels() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Member Levels</h1>
           <p className="text-muted-foreground">
-            Manage subscription tiers: duration, credit points, pricing, and highlights
+            Manage subscription tiers: duration, credit points, pricing, and highlights. Prices are in{" "}
+            <span className="font-medium text-foreground">MMK</span> (Myanmar Kyat) only.
           </p>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -270,7 +311,7 @@ export function MemberLevels() {
                   <TableHead>Duration (days)</TableHead>
                   <TableHead>Credit points</TableHead>
                   <TableHead>Best value</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>Price (MMK)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -288,7 +329,7 @@ export function MemberLevels() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>{formatPrice(level.price)}</TableCell>
+                      <TableCell>{formatPriceMmk(level.price)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -388,27 +429,36 @@ export function MemberLevels() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                type="text"
-                inputMode="decimal"
-                value={formatPrice(formData.price)}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    price: parsePrice(e.target.value),
-                  })
-                }
-                placeholder="0.00"
-              />
+              <Label htmlFor="price">Price (MMK)</Label>
+              <p className="text-xs text-muted-foreground">
+                Enter the amount in Myanmar Kyat (MMK).
+              </p>
+              <div className="relative">
+                <Input
+                  id="price"
+                  className="pr-14"
+                  type="text"
+                  inputMode="decimal"
+                  value={formatPrice(formData.price)}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      price: parsePrice(e.target.value),
+                    })
+                  }
+                  placeholder="0"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  MMK
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={creating || !formValid}>
+            <Button onClick={() => openMemberLevelConfirm("create")} disabled={creating || !formValid}>
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create
             </Button>
@@ -474,27 +524,36 @@ export function MemberLevels() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-price">Price</Label>
-              <Input
-                id="edit-price"
-                type="text"
-                inputMode="decimal"
-                value={formatPrice(formData.price)}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    price: parsePrice(e.target.value),
-                  })
-                }
-                placeholder="0.00"
-              />
+              <Label htmlFor="edit-price">Price (MMK)</Label>
+              <p className="text-xs text-muted-foreground">
+                Enter the amount in Myanmar Kyat (MMK) only. Other currencies are not accepted.
+              </p>
+              <div className="relative">
+                <Input
+                  id="edit-price"
+                  className="pr-14"
+                  type="text"
+                  inputMode="decimal"
+                  value={formatPrice(formData.price)}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      price: parsePrice(e.target.value),
+                    })
+                  }
+                  placeholder="0"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  MMK
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingLevel(null)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={updating || !formValid}>
+            <Button onClick={() => openMemberLevelConfirm("update")} disabled={updating || !formValid}>
               {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update
             </Button>
@@ -520,6 +579,96 @@ export function MemberLevels() {
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={memberLevelConfirmOpen}
+        onOpenChange={(open) => {
+          setMemberLevelConfirmOpen(open)
+          if (!open) setMemberLevelConfirmKind(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {memberLevelConfirmKind === "create" ? "Create this member level?" : "Save changes?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p className="text-sm text-muted-foreground">
+                  Please confirm the values below before sending to the server.
+                </p>
+                <ul className="list-inside list-disc space-y-1 text-sm text-foreground">
+                  <li>Name: {formData.name || "—"}</li>
+                  <li>Duration (days): {formData.durationDays}</li>
+                  <li>Credit points: {formData.creditPoints}</li>
+                  <li>Best value: {formData.isBestValue ? "Yes" : "No"}</li>
+                  <li>Price (MMK): {formatPriceMmk(formData.price)}</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void onConfirmMemberLevelSave()
+              }}
+              disabled={creating || updating}
+            >
+              {(creating || updating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={codesSaveConfirmOpen} onOpenChange={setCodesSaveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save generated codes?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p className="text-sm text-muted-foreground">
+                  You are about to create{" "}
+                  <strong className="text-foreground">
+                    {
+                      generatedCodes
+                        .split("\n")
+                        .map((l) => l.trim())
+                        .filter(Boolean).length
+                    }{" "}
+                    code(s)
+                  </strong>{" "}
+                  for tier <strong className="text-foreground">{codeGenerationLevel?.name}</strong>.
+                </p>
+                <pre className="max-h-32 overflow-auto rounded-md border bg-muted/50 p-2 font-mono text-xs">
+                  {generatedCodes
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter(Boolean)
+                    .slice(0, 8)
+                    .join("\n")}
+                  {generatedCodes.split("\n").filter((l) => l.trim()).length > 8 ? "\n…" : ""}
+                </pre>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleSaveCodes()
+              }}
+              disabled={isSavingCodes}
+            >
+              {isSavingCodes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm save
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -591,7 +740,7 @@ export function MemberLevels() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveCodes} disabled={isSavingCodes || !generatedCodes.trim()}>
+            <Button onClick={openCodesSaveConfirm} disabled={isSavingCodes || !generatedCodes.trim()}>
               {isSavingCodes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Codes
             </Button>

@@ -9,6 +9,7 @@ import type {
   MemberLevelCodeRequest,
   MemberLevelCodeUpdateRequest,
   MemberLevelCodeFilter,
+  MemberLevelActivationResult,
 } from "../types/member-levels-code.types"
 
 const BASE_URL = `${API_V1_PREFIX}/member-levels-codes`
@@ -63,6 +64,18 @@ export const memberLevelsCodeService = {
    */
   async delete(id: number): Promise<void> {
     await apiClient.delete(`${BASE_URL}/${id}`)
+  },
+
+  /**
+   * Redeem a code for the current user (any authenticated role).
+   * Updates profile member level and records a purchase transaction.
+   */
+  async activate(code: string): Promise<MemberLevelActivationResult> {
+    const response = await apiClient.post<ApiResponse<MemberLevelActivationResult>>(
+      `${BASE_URL}/activate`,
+      { code: code.trim() }
+    )
+    return response.data
   },
 }
 

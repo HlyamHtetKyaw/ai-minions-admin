@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 import { 
   Key, 
   Eye, 
@@ -47,7 +46,6 @@ export function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [savingApiKey, setSavingApiKey] = useState(false)
-  const [savingProfile, setSavingProfile] = useState(false)
 
   // Fetch current user's profile
   useEffect(() => {
@@ -86,17 +84,6 @@ export function Settings() {
 
     fetchProfile()
   }, [])
-
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSavingProfile(true)
-    // Simulate delay for effect
-    setTimeout(() => {
-      console.log("Profile updated:", profileData)
-      toast.success("Profile information updated")
-      setSavingProfile(false)
-    }, 800)
-  }
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,7 +175,7 @@ export function Settings() {
                 </div>
               </div>
 
-              <form onSubmit={handleProfileSubmit} className="space-y-6">
+              <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
@@ -219,22 +206,7 @@ export function Settings() {
                     </div>
                   </div>
                 </div>
-
-                <Separator />
-
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={savingProfile} className="min-w-[120px]">
-                    {savingProfile ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Changes"
-                    )}
-                  </Button>
-                </div>
-              </form>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
