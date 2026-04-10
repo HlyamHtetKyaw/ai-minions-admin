@@ -2,16 +2,13 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { authService } from "../services/auth.service"
 import { toast } from "sonner"
-import { KeyRound, Loader2, Lock } from "lucide-react"
+import { Loader2, Lock, Sparkles } from "lucide-react"
 
 export function SignIn() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [accessCode, setAccessCode] = useState("")
   const [loading, setLoading] = useState(false)
 
   async function finishSession(token: string, refreshToken?: string) {
@@ -47,136 +44,96 @@ export function SignIn() {
     }
   }
 
-  const handleCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      const { token, refreshToken } = await authService.loginWithCode({
-        code: accessCode,
-      })
-      await finishSession(token, refreshToken)
-    } catch (error: unknown) {
-      authService.logout()
-      toast.error(
-        error instanceof Error ? error.message : "Invalid access code.",
-      )
-      setLoading(false)
-    }
-  }
-
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-muted/50 via-background to-muted/30 p-4">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"
-        aria-hidden
-      />
-      <Card className="relative w-full max-w-md border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20">
-        <CardHeader className="space-y-1 pb-2">
-          <CardTitle className="text-2xl font-bold tracking-tight">
-            AI Minions Admin
-          </CardTitle>
-          <CardDescription>
-            Sign in with your admin credentials, or use an access code if your account was
-            provisioned with one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="password" className="w-full">
-            <TabsList className="mb-6 grid w-full grid-cols-2 gap-1 rounded-lg bg-muted/80 p-1">
-              <TabsTrigger
-                value="password"
-                className="gap-2 data-[state=active]:ring-1 data-[state=active]:ring-ring/40"
-              >
-                <Lock className="h-3.5 w-3.5 opacity-70" />
-                Password
-              </TabsTrigger>
-              <TabsTrigger
-                value="code"
-                className="gap-2 data-[state=active]:ring-1 data-[state=active]:ring-ring/40"
-              >
-                <KeyRound className="h-3.5 w-3.5 opacity-70" />
-                Access code
-              </TabsTrigger>
-            </TabsList>
+    <div className="relative flex min-h-screen flex-col lg:flex-row">
+      {/* Brand panel — distinct from a generic “card in the middle” layout */}
+      <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-zinc-950 px-8 py-10 text-white lg:max-w-[46%] lg:px-12 lg:py-14">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-90"
+          aria-hidden
+          style={{
+            background:
+              "radial-gradient(ellipse 120% 80% at 20% -20%, hsl(262 83% 58% / 0.45), transparent 50%), radial-gradient(ellipse 80% 60% at 100% 0%, hsl(199 89% 48% / 0.25), transparent 45%), linear-gradient(165deg, hsl(240 10% 4%) 0%, hsl(224 40% 8%) 100%)",
+          }}
+        />
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur">
+            <Sparkles className="h-5 w-5 text-violet-200" aria-hidden />
+          </div>
+          <div>
+            <p className="text-sm font-semibold tracking-tight">AI Minions</p>
+            <p className="text-xs text-zinc-400">Admin console</p>
+          </div>
+        </div>
+        <div className="relative z-10 mt-12 max-w-md space-y-4 lg:mt-0">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Operations dashboard
+          </h1>
+          <p className="text-sm leading-relaxed text-zinc-400 sm:text-base">
+            Sign in with your administrator account.
+          </p>
+        </div>
+        <p className="relative z-10 mt-10 text-xs text-zinc-500 lg:mt-0">
+          Restricted access. Activity may be logged.
+        </p>
+      </div>
 
-            <TabsContent value="password" className="mt-0 outline-none">
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email or username</Label>
-                  <Input
-                    id="email"
-                    type="text"
-                    autoComplete="username"
-                    placeholder="admin@example.com or admin"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    "Sign in"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
+      {/* Form */}
+      <div className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-12 lg:py-0">
+        <div className="w-full max-w-[400px] space-y-8">
+          <div className="space-y-2 lg:hidden">
+            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
+            <p className="text-sm text-muted-foreground">Administrator credentials only.</p>
+          </div>
+          <div className="hidden space-y-2 lg:block">
+            <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
+            <p className="text-sm text-muted-foreground">
+              Enter your admin email or username and password.
+            </p>
+          </div>
 
-            <TabsContent value="code" className="mt-0 outline-none">
-              <form onSubmit={handleCodeSubmit} className="space-y-4">
-                <div className="flex justify-center pb-1">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-                    <KeyRound className="h-6 w-6 text-primary opacity-90" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accessCode">Access code</Label>
-                  <Input
-                    id="accessCode"
-                    type="text"
-                    autoComplete="one-time-code"
-                    spellCheck={false}
-                    placeholder="Enter your code"
-                    className="text-center font-mono tracking-widest"
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Use the login code from user provisioning. Admin access still requires an ADMIN
-                    account.
-                  </p>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    "Continue with code"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+          <form onSubmit={handlePasswordSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email or username</Label>
+              <Input
+                id="email"
+                type="text"
+                autoComplete="username"
+                placeholder="you@company.com"
+                className="h-11 rounded-xl border-border/80 bg-background shadow-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                className="h-11 rounded-xl border-border/80 bg-background shadow-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="h-11 w-full rounded-xl text-[15px] font-medium" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <Lock className="mr-2 h-4 w-4 opacity-80" />
+                  Sign in
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }

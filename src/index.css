@@ -27,6 +27,9 @@
     --radius: 0.5rem;
     --brand-gold: 45 55% 52%;
     --brand-purple: 250 60% 70%;
+    --sidebar: 240 6% 98%;
+    --sidebar-foreground: 240 6% 12%;
+    --sidebar-accent: 262 83% 58%;
   }
 
   .dark {
@@ -51,6 +54,9 @@
     --ring: 45 65% 62%;
     --brand-gold: 45 65% 62%;
     --brand-purple: 250 91% 84%;
+    --sidebar: 224 40% 8%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-accent: 262 90% 72%;
   }
 }
 

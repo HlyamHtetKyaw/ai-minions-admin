@@ -49,8 +49,9 @@ function App() {
   if (authChecking) {
     return (
       <ThemeProvider defaultTheme="system" storageKey="ai-minions-admin-theme">
-        <div className="flex min-h-screen items-center justify-center bg-background">
-          <div className="text-muted-foreground">Checking session...</div>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/30 px-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-sidebar-accent" />
+          <p className="text-sm text-muted-foreground">Checking your session…</p>
         </div>
       </ThemeProvider>
     )

@@ -1,8 +1,9 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -29,7 +30,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Edit, Trash2, Loader2, MoreVertical, Sparkles } from "lucide-react"
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+  MoreVertical,
+  Sparkles,
+  RefreshCw,
+  Key,
+  UserCog,
+} from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +54,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 function emptyMemberLevelForm(): MemberLevelRequest {
   return {
@@ -266,123 +278,218 @@ export function MemberLevels() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Member Levels</h1>
-          <p className="text-muted-foreground text-destructive mt-2">
-            Error: {error.message}
-          </p>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Member levels</h1>
+          <div
+            role="alert"
+            className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          >
+            {error.message}
+          </div>
         </div>
       </div>
     )
   }
 
+  const totalTiers = data?.totalItems ?? 0
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Member Levels</h1>
-          <p className="text-muted-foreground">
-            Manage subscription tiers: duration, credit points, pricing, and highlights. Prices are in{" "}
-            <span className="font-medium text-foreground">MMK</span> (Myanmar Kyat) only.
-          </p>
+    <div className="space-y-8">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-400/10"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="rounded-lg px-2.5 font-medium">
+                <UserCog className="mr-1.5 h-3 w-3" aria-hidden />
+                Catalog
+              </Badge>
+              {!loading && data != null && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {totalTiers} tier{totalTiers === 1 ? "" : "s"} loaded
+                </span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Member levels</h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                Define subscription tiers: duration, credits, pricing, and merchandising flags. All
+                prices are{" "}
+                <span className="font-medium text-foreground">MMK</span> (Myanmar Kyat) only.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2 rounded-xl border-border/80 bg-background/80"
+              onClick={() => void refetch()}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              asChild
+              className="h-10 rounded-xl border-border/80 bg-background/80"
+            >
+              <Link to="/member-level-codes" className="gap-2">
+                <Key className="h-4 w-4" aria-hidden />
+                Level codes
+              </Link>
+            </Button>
+            <Button className="h-10 rounded-xl px-4" onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add level
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Level
-        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Member Levels</CardTitle>
-          <CardDescription>
-            A list of all member levels in your system
-            {data && ` (${data.totalItems} total)`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Duration (days)</TableHead>
-                  <TableHead>Credit points</TableHead>
-                  <TableHead>Best value</TableHead>
-                  <TableHead>Top-up</TableHead>
-                  <TableHead>Price (MMK)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.content && data.content.length > 0 ? (
-                  data.content.map((level) => (
-                    <TableRow key={level.id}>
-                      <TableCell className="font-medium">{level.name}</TableCell>
-                      <TableCell>{level.durationDays}</TableCell>
-                      <TableCell>{level.creditPoints}</TableCell>
-                      <TableCell>
-                        {level.isBestValue ? (
-                          <Badge variant="secondary">Best value</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {level.isTopup ? (
-                          <Badge variant="outline">Top-up</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{formatPriceMmk(level.price)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleGenerateCode(level)}>
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              Generate Code
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(level)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => setDeletingLevel(level)}
+      {/* Table panel */}
+      <section className="space-y-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">All tiers</h2>
+            <p className="text-sm text-muted-foreground">
+              Edit tiers, generate codes for a tier, or remove unused levels.
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="divide-y divide-border/60">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 px-4 py-4 sm:px-6"
+                    aria-hidden
+                  >
+                    <Skeleton className="h-4 flex-1 max-w-[200px]" />
+                    <Skeleton className="h-4 w-14 shrink-0" />
+                    <Skeleton className="h-4 w-16 shrink-0" />
+                    <Skeleton className="h-6 w-20 shrink-0 rounded-full" />
+                    <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+                    <Skeleton className="h-4 w-24 shrink-0" />
+                    <Skeleton className="ml-auto h-9 w-9 shrink-0 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/60 hover:bg-transparent">
+                    <TableHead className="bg-muted/40 font-semibold">Name</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Duration (days)</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Credit points</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Best value</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Top-up</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Price (MMK)</TableHead>
+                    <TableHead className="bg-muted/40 text-right font-semibold">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data?.content && data.content.length > 0 ? (
+                    data.content.map((level) => (
+                      <TableRow
+                        key={level.id}
+                        className="border-border/50 transition-colors hover:bg-muted/30"
+                      >
+                        <TableCell className="font-medium">{level.name}</TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {level.durationDays}
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {level.creditPoints}
+                        </TableCell>
+                        <TableCell>
+                          {level.isBestValue ? (
+                            <Badge
+                              variant="secondary"
+                              className="rounded-md bg-violet-500/10 font-medium text-violet-700 dark:text-violet-300"
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              Best value
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {level.isTopup ? (
+                            <Badge variant="outline" className="rounded-md font-medium">
+                              Top-up
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium tabular-nums">
+                          {formatPriceMmk(level.price)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-xl">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl">
+                              <DropdownMenuItem onClick={() => handleGenerateCode(level)}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Generate code
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEdit(level)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeletingLevel(level)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={7} className="py-16 text-center">
+                        <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                            <UserCog className="h-6 w-6 text-muted-foreground" aria-hidden />
+                          </div>
+                          <p className="font-medium">No member levels yet</p>
+                          <p className="text-sm text-muted-foreground">
+                            Create your first tier to start selling subscriptions or top-ups.
+                          </p>
+                          <Button className="mt-2 rounded-xl" onClick={() => setIsCreateDialogOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add level
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No member levels found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
+      </section>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Member Level</DialogTitle>
             <DialogDescription>Add a new member level to your system</DialogDescription>
@@ -392,6 +499,7 @@ export function MemberLevels() {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
+                className="rounded-xl"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. Gold"
@@ -401,6 +509,7 @@ export function MemberLevels() {
               <Label htmlFor="durationDays">Duration (days)</Label>
               <Input
                 id="durationDays"
+                className="rounded-xl"
                 type="number"
                 min={0}
                 value={formData.durationDays}
@@ -416,6 +525,7 @@ export function MemberLevels() {
               <Label htmlFor="creditPoints">Credit points</Label>
               <Input
                 id="creditPoints"
+                className="rounded-xl"
                 type="number"
                 min={0}
                 value={formData.creditPoints}
@@ -427,7 +537,7 @@ export function MemberLevels() {
                 }
               />
             </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/80 bg-muted/20 p-4">
               <div className="space-y-0.5">
                 <Label htmlFor="isBestValue">Best value</Label>
                 <p className="text-xs text-muted-foreground">Highlight this tier in the catalog</p>
@@ -438,7 +548,7 @@ export function MemberLevels() {
                 onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
               />
             </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/80 bg-muted/20 p-4">
               <div className="space-y-0.5">
                 <Label htmlFor="isTopup">Top-up tier</Label>
                 <p className="text-xs text-muted-foreground">Marks this level as a credit top-up product</p>
@@ -457,7 +567,7 @@ export function MemberLevels() {
               <div className="relative">
                 <Input
                   id="price"
-                  className="pr-14"
+                  className="rounded-xl pr-14"
                   type="text"
                   inputMode="decimal"
                   value={formatPrice(formData.price)}
@@ -475,11 +585,15 @@ export function MemberLevels() {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-xl" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => openMemberLevelConfirm("create")} disabled={creating || !formValid}>
+            <Button
+              className="rounded-xl"
+              onClick={() => openMemberLevelConfirm("create")}
+              disabled={creating || !formValid}
+            >
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create
             </Button>
@@ -488,7 +602,7 @@ export function MemberLevels() {
       </Dialog>
 
       <Dialog open={!!editingLevel} onOpenChange={(open) => !open && setEditingLevel(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Member Level</DialogTitle>
             <DialogDescription>Update member level information</DialogDescription>
@@ -498,6 +612,7 @@ export function MemberLevels() {
               <Label htmlFor="edit-name">Name</Label>
               <Input
                 id="edit-name"
+                className="rounded-xl"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter level name"
@@ -507,6 +622,7 @@ export function MemberLevels() {
               <Label htmlFor="edit-durationDays">Duration (days)</Label>
               <Input
                 id="edit-durationDays"
+                className="rounded-xl"
                 type="number"
                 min={0}
                 value={formData.durationDays}
@@ -522,6 +638,7 @@ export function MemberLevels() {
               <Label htmlFor="edit-creditPoints">Credit points</Label>
               <Input
                 id="edit-creditPoints"
+                className="rounded-xl"
                 type="number"
                 min={0}
                 value={formData.creditPoints}
@@ -533,7 +650,7 @@ export function MemberLevels() {
                 }
               />
             </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/80 bg-muted/20 p-4">
               <div className="space-y-0.5">
                 <Label htmlFor="edit-isBestValue">Best value</Label>
                 <p className="text-xs text-muted-foreground">Highlight this tier in the catalog</p>
@@ -544,7 +661,7 @@ export function MemberLevels() {
                 onCheckedChange={(checked) => setFormData({ ...formData, isBestValue: checked })}
               />
             </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border/80 bg-muted/20 p-4">
               <div className="space-y-0.5">
                 <Label htmlFor="edit-isTopup">Top-up tier</Label>
                 <p className="text-xs text-muted-foreground">Marks this level as a credit top-up product</p>
@@ -563,7 +680,7 @@ export function MemberLevels() {
               <div className="relative">
                 <Input
                   id="edit-price"
-                  className="pr-14"
+                  className="rounded-xl pr-14"
                   type="text"
                   inputMode="decimal"
                   value={formatPrice(formData.price)}
@@ -581,11 +698,15 @@ export function MemberLevels() {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingLevel(null)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-xl" onClick={() => setEditingLevel(null)}>
               Cancel
             </Button>
-            <Button onClick={() => openMemberLevelConfirm("update")} disabled={updating || !formValid}>
+            <Button
+              className="rounded-xl"
+              onClick={() => openMemberLevelConfirm("update")}
+              disabled={updating || !formValid}
+            >
               {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update
             </Button>
@@ -594,7 +715,7 @@ export function MemberLevels() {
       </Dialog>
 
       <AlertDialog open={!!deletingLevel} onOpenChange={(open) => !open && setDeletingLevel(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -623,7 +744,7 @@ export function MemberLevels() {
           if (!open) setMemberLevelConfirmKind(null)
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {memberLevelConfirmKind === "create" ? "Create this member level?" : "Save changes?"}
@@ -661,7 +782,7 @@ export function MemberLevels() {
       </AlertDialog>
 
       <AlertDialog open={codesSaveConfirmOpen} onOpenChange={setCodesSaveConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Save generated codes?</AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -708,7 +829,7 @@ export function MemberLevels() {
       </AlertDialog>
 
       <Dialog open={!!codeGenerationLevel} onOpenChange={(open) => !open && setCodeGenerationLevel(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Generate Code for {codeGenerationLevel?.name}</DialogTitle>
             <DialogDescription>
@@ -723,6 +844,7 @@ export function MemberLevels() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="rounded-lg"
                   onClick={handleRegenerateCodes}
                   disabled={isGeneratingCodes || isSavingCodes}
                 >
@@ -742,7 +864,10 @@ export function MemberLevels() {
                 onChange={(e) => setGeneratedCodes(e.target.value)}
                 placeholder="Codes will appear here, one per line..."
                 rows={10}
-                className={`font-mono text-sm ${codeValidationErrors.size > 0 ? "border-destructive" : ""}`}
+                className={cn(
+                  "rounded-xl font-mono text-sm",
+                  codeValidationErrors.size > 0 && "border-destructive",
+                )}
                 disabled={isSavingCodes}
               />
               <div className="space-y-2">
@@ -750,7 +875,7 @@ export function MemberLevels() {
                   {generatedCodes.split("\n").filter((line) => line.trim()).length} code(s) ready to save
                 </p>
                 {codeValidationErrors.size > 0 && (
-                  <div className="bg-destructive/10 border border-destructive/30 rounded p-3 space-y-1">
+                  <div className="space-y-1 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
                     <p className="text-xs font-semibold text-destructive">Validation Errors:</p>
                     {Array.from(codeValidationErrors.entries()).map(([code, err]) => (
                       <p key={code} className="text-xs text-destructive">
@@ -762,9 +887,10 @@ export function MemberLevels() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
+              className="rounded-xl"
               onClick={() => {
                 setCodeGenerationLevel(null)
                 setGeneratedCodes("")
@@ -773,9 +899,13 @@ export function MemberLevels() {
             >
               Cancel
             </Button>
-            <Button onClick={openCodesSaveConfirm} disabled={isSavingCodes || !generatedCodes.trim()}>
+            <Button
+              className="rounded-xl"
+              onClick={openCodesSaveConfirm}
+              disabled={isSavingCodes || !generatedCodes.trim()}
+            >
               {isSavingCodes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Codes
+              Save codes
             </Button>
           </DialogFooter>
         </DialogContent>
