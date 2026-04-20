@@ -1,4 +1,9 @@
-export type PointsMetricType = "TOKEN_IN" | "TOKEN_OUT" | "MB_AUDIO" | "MB_VIDEO"
+export type PointsMetricType =
+  | "TOKEN_IN"
+  | "TOKEN_OUT"
+  | "MB_AUDIO"
+  | "MB_VIDEO"
+  | "IMAGE_GEN"
 
 export interface PointsConfig {
   id: number
