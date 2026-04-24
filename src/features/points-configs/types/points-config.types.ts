@@ -1,6 +1,7 @@
 export type PointsMetricType =
   | "TOKEN_IN"
   | "TOKEN_OUT"
+  | "VOICE_OVER_TOKEN"
   | "MB_AUDIO"
   | "MB_VIDEO"
   | "IMAGE_GEN"
