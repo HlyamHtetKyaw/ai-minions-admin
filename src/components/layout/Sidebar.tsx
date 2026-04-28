@@ -49,6 +49,11 @@ const menuItems = [
     href: "/points-configs",
   },
   {
+    title: "Topup codes",
+    icon: Coins,
+    href: "/topup-codes",
+  },
+  {
     title: "Users",
     icon: Users,
     href: "/users",
