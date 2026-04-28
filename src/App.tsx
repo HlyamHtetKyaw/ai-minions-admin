@@ -11,6 +11,7 @@ import { VoiceNotes } from "@/features/voice-notes/pages/VoiceNotes"
 import { VoiceNoteDetail } from "@/features/voice-notes/pages/VoiceNoteDetail"
 import { MemberLevels } from "@/features/member-levels/pages/MemberLevels"
 import { MemberLevelCodes } from "@/features/member-levels/pages/MemberLevelCodes"
+import { TopupCodes } from "@/features/topup-codes/pages/TopupCodes"
 import { Users } from "@/features/users/pages/Users"
 import { Settings } from "@/features/settings/pages/Settings"
 import { authService } from "@/features/auth/services/auth.service"
@@ -161,6 +162,20 @@ function App() {
                 : (
               <MainLayout>
                 <MemberLevelCodes />
+              </MainLayout>
+            )
+          }
+        />
+        <Route
+          path="/topup-codes"
+          element={
+            !isAuthenticated
+              ? <Navigate to="/signin" replace />
+              : !isAdmin
+                ? <Unauthorized />
+                : (
+              <MainLayout>
+                <TopupCodes />
               </MainLayout>
             )
           }

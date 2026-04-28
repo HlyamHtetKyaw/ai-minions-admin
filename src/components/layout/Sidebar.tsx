@@ -11,6 +11,7 @@ import {
   LogOut,
   Mic,
   Key,
+  Coins,
   Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -41,6 +42,11 @@ const menuItems = [
     title: "Level codes",
     icon: Key,
     href: "/member-level-codes",
+  },
+  {
+    title: "Topup codes",
+    icon: Coins,
+    href: "/topup-codes",
   },
   {
     title: "Users",
