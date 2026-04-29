@@ -70,7 +70,7 @@ function App() {
           element={
             isAuthenticated
               ? isAdmin
-                ? <Navigate to="/dashboard" replace />
+                ? <Navigate to="/" replace />
                 : <Navigate to="/unauthorized" replace />
               : <SignIn />
           }

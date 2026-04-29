@@ -23,7 +23,7 @@ export function SignIn() {
       role: me.role,
     })
     toast.success("Login successful!")
-    window.location.href = "/dashboard"
+    window.location.href = "/"
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
