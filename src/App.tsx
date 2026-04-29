@@ -11,6 +11,7 @@ import { VoiceNotes } from "@/features/voice-notes/pages/VoiceNotes"
 import { VoiceNoteDetail } from "@/features/voice-notes/pages/VoiceNoteDetail"
 import { MemberLevels } from "@/features/member-levels/pages/MemberLevels"
 import { MemberLevelCodes } from "@/features/member-levels/pages/MemberLevelCodes"
+import { PointsConfigs } from "@/features/points-configs/pages/PointsConfigs"
 import { TopupCodes } from "@/features/topup-codes/pages/TopupCodes"
 import { Users } from "@/features/users/pages/Users"
 import { Settings } from "@/features/settings/pages/Settings"
@@ -176,6 +177,20 @@ function App() {
                 : (
               <MainLayout>
                 <TopupCodes />
+              </MainLayout>
+            )
+          }
+        />
+        <Route
+          path="/points-configs"
+          element={
+            !isAuthenticated
+              ? <Navigate to="/signin" replace />
+              : !isAdmin
+                ? <Unauthorized />
+                : (
+              <MainLayout>
+                <PointsConfigs />
               </MainLayout>
             )
           }
