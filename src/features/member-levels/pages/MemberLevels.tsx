@@ -377,7 +377,6 @@ export function MemberLevels() {
                     <Skeleton className="h-4 w-14 shrink-0" />
                     <Skeleton className="h-4 w-16 shrink-0" />
                     <Skeleton className="h-6 w-20 shrink-0 rounded-full" />
-                    <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
                     <Skeleton className="h-4 w-24 shrink-0" />
                     <Skeleton className="ml-auto h-9 w-9 shrink-0 rounded-lg" />
                   </div>
@@ -391,7 +390,6 @@ export function MemberLevels() {
                     <TableHead className="bg-muted/40 font-semibold">Duration (days)</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Credit points</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Best value</TableHead>
-                    <TableHead className="bg-muted/40 font-semibold">Top-up</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Price (MMK)</TableHead>
                     <TableHead className="bg-muted/40 text-right font-semibold">Actions</TableHead>
                   </TableRow>
@@ -417,15 +415,6 @@ export function MemberLevels() {
                               className="rounded-md bg-violet-500/10 font-medium text-violet-700 dark:text-violet-300"
                             >
                               Best value
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {level.isTopup ? (
-                            <Badge variant="outline" className="rounded-md font-medium">
-                              Top-up
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -464,7 +453,7 @@ export function MemberLevels() {
                     ))
                   ) : (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={7} className="py-16 text-center">
+                      <TableCell colSpan={6} className="py-16 text-center">
                         <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                             <UserCog className="h-6 w-6 text-muted-foreground" aria-hidden />
