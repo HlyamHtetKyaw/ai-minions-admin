@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { PointsConfig, PointsConfigUpdateRequest } from "../types/points-config.types"
+import { adminPointsPricingService } from "../services/admin-points-pricing.service"
 import { pointsConfigsService } from "../services/points-configs.service"
 
 function normalizeDecimalInput(v: string): string {
@@ -60,6 +61,13 @@ function toEditableString(v: string | number | undefined | null): string {
   return v
 }
 
+function formatUsdEstimate(v: string | number | null | undefined): string {
+  if (v === null || v === undefined || v === "") return "—"
+  const n = typeof v === "number" ? v : Number(v)
+  if (!Number.isFinite(n)) return "—"
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+}
+
 export function PointsConfigs() {
   const [items, setItems] = useState<PointsConfig[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -72,21 +80,57 @@ export function PointsConfigs() {
   const [deleting, setDeleting] = useState<PointsConfig | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
 
+  const [usdRefDraft, setUsdRefDraft] = useState("")
+  const [savingRef, setSavingRef] = useState(false)
+
   const sorted = useMemo(() => {
     const list = items ?? []
     return [...list].sort((a, b) => String(a.metricType).localeCompare(String(b.metricType)))
   }, [items])
 
+  const applyOverview = (data: { usdPerPoint: string | number | null; rows: PointsConfig[] }) => {
+    setItems(data.rows)
+    setUsdRefDraft(toEditableString(data.usdPerPoint))
+  }
+
+  const refreshOverviewSilently = async () => {
+    const data = await adminPointsPricingService.getOverview()
+    applyOverview(data)
+  }
+
   const load = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await pointsConfigsService.getAll()
-      setItems(data)
+      const data = await adminPointsPricingService.getOverview()
+      applyOverview(data)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load points configs")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const saveUsdReference = async () => {
+    const raw = normalizeDecimalInput(usdRefDraft)
+    const usdPerPoint =
+      raw === "" ? null : (() => {
+          const n = Number(raw)
+          return Number.isFinite(n) ? n : Number.NaN
+        })()
+    if (usdPerPoint !== null && (usdPerPoint <= 0 || !Number.isFinite(usdPerPoint))) {
+      toast.error("Enter a positive USD per point, or leave blank to clear the reference.")
+      return
+    }
+    try {
+      setSavingRef(true)
+      await adminPointsPricingService.updateUsdReference(usdPerPoint)
+      toast.success("USD reference saved")
+      await refreshOverviewSilently()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to save USD reference")
+    } finally {
+      setSavingRef(false)
     }
   }
 
@@ -125,12 +169,12 @@ export function PointsConfigs() {
 
     try {
       setSaving(true)
-      const updated = await pointsConfigsService.update(editing.id, {
+      await pointsConfigsService.update(editing.id, {
         ...form,
         basePointCost: base,
         profitMultiplier: mul,
       })
-      setItems((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : [updated]))
+      await refreshOverviewSilently()
       toast.success("Points config updated")
       closeEdit()
     } catch (e: unknown) {
@@ -144,11 +188,12 @@ export function PointsConfigs() {
     try {
       setDeletingBusy(true)
       await pointsConfigsService.delete(deleting.id)
-      setItems((prev) => (prev ? prev.filter((p) => p.id !== deleting.id) : prev))
+      await refreshOverviewSilently()
       toast.success("Points config deleted")
       setDeleting(null)
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to delete points config")
+    } finally {
       setDeletingBusy(false)
     }
   }
@@ -170,7 +215,35 @@ export function PointsConfigs() {
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Points pricing</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
                 Admin can <span className="font-medium text-foreground">update</span> base cost,
-                profit multiplier, and active status. Creating new metrics is disabled in the UI.
+                profit multiplier, and active status.
+              </p>
+              <div className="mt-4 flex max-w-2xl flex-col gap-2 rounded-xl border border-border/70 bg-muted/20 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="grid min-w-0 flex-1 gap-2">
+                  <Label htmlFor="usdPerPointRef" className="text-xs font-medium text-muted-foreground">
+                    Reference: USD per point (shared)
+                  </Label>
+                  <Input
+                    id="usdPerPointRef"
+                    className="h-10 rounded-xl font-mono"
+                    inputMode="decimal"
+                    placeholder="e.g. 0.01 — leave empty to hide $ column"
+                    value={usdRefDraft}
+                    onChange={(e) => setUsdRefDraft(normalizeDecimalInput(e.target.value))}
+                    disabled={loading || savingRef}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="h-10 shrink-0 rounded-xl"
+                  onClick={() => void saveUsdReference()}
+                  disabled={loading || savingRef}
+                >
+                  {savingRef ? "Saving…" : "Save reference"}
+                </Button>
+              </div>
+              <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
+                Est. USD / unit is illustrative: real jobs combine metrics, round points up to whole numbers, and may
+                reserve extra buffer on the server.
               </p>
             </div>
           </div>
@@ -219,6 +292,7 @@ export function PointsConfigs() {
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-6 w-16 rounded-full" />
                     <Skeleton className="ml-auto h-9 w-9 rounded-lg" />
                   </div>
@@ -231,6 +305,7 @@ export function PointsConfigs() {
                     <TableHead className="bg-muted/40 font-semibold">Metric</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Base cost / unit</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Profit multiplier</TableHead>
+                    <TableHead className="bg-muted/40 font-semibold">Est. USD / unit</TableHead>
                     <TableHead className="bg-muted/40 font-semibold">Active</TableHead>
                     <TableHead className="bg-muted/40 text-right font-semibold">Actions</TableHead>
                   </TableRow>
@@ -248,6 +323,9 @@ export function PointsConfigs() {
                         </TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">
                           {toEditableString(cfg.profitMultiplier) || "—"}
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {formatUsdEstimate(cfg.estimatedUsdPerUnit)}
                         </TableCell>
                         <TableCell>
                           {cfg.isActive ? (
@@ -272,13 +350,13 @@ export function PointsConfigs() {
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem
+                              {/* <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleting(cfg)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
-                              </DropdownMenuItem>
+                              </DropdownMenuItem> */}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -286,7 +364,7 @@ export function PointsConfigs() {
                     ))
                   ) : (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={5} className="py-16 text-center">
+                      <TableCell colSpan={6} className="py-16 text-center">
                         <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                             <Coins className="h-6 w-6 text-muted-foreground" aria-hidden />

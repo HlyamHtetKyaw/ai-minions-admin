@@ -14,6 +14,17 @@ export interface PointsConfig {
   isActive: boolean
   createdAt?: string
   updatedAt?: string
+  /** Present on admin overview rows; illustrative USD per metric unit. */
+  estimatedUsdPerUnit?: string | number | null
+}
+
+export interface AdminPointsPricingOverview {
+  usdPerPoint: string | number | null
+  rows: PointsConfig[]
+}
+
+export interface PointsPricingUsdReference {
+  usdPerPoint: string | number | null
 }
 
 export interface PointsConfigUpdateRequest {
